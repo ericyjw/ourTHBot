@@ -4,7 +4,38 @@ ourTHBot is a telegram bot that aims to improve the hall experience of the resid
 
 ========================================================================================
 
+Version - beta2.0
+Date - 01/07/2018
+
+Fixed:
+  - Mulitple users can now use the bot at the same time
+
+Working:
+  - Allowed update for user name, matric and block after first registeration
+  - Daily noitification and database reset
+  - Admin controls
+      - Ban users
+      - Unban users
+      - Requesting user id from matric number
+  - Report Users
+  - Upload dinner picture and view dinner picture
+  
+To do:
+  - Feedback from users
+  - Ability to say thanks after obtaining the extra matric
+  - Admin controls over dinner pic uploaded (number of pictures that can be uploaded, quality of photos uploaded)
+  - Admin controls on adding new admins
+  - Admin controls on broadcasting message
+  - Export daily log to excel/google sheet
+  
+Issues:
+  - Not uploaded to the server
+   
+========================================================================================
+========================================================================================
+
 Version - beta1.0
+Date - 21/06/2018
 
 Working:
   - Obtaining Name, Matric Number and Block upon first login
@@ -18,3 +49,6 @@ Issues:
   - Not uploaded to a server / database
   
 ========================================================================================
+
+  
+  
