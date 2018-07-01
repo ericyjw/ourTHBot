@@ -1,1 +1,0 @@
-worker: ourTHBot.java
