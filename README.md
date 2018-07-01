@@ -4,7 +4,8 @@ ourTHBot is a telegram bot that aims to improve the hall experience of the resid
 
 ========================================================================================
 
-Version - beta2.0
+Version - beta2.0 
+
 Date - 01/07/2018
 
 Fixed:
@@ -36,6 +37,7 @@ Issues:
 ========================================================================================
 
 Version - beta1.0
+
 Date - 21/06/2018
 
 Working:
