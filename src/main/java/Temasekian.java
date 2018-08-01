@@ -4,20 +4,20 @@ public class Temasekian {
     private static int RETRY_COUNTER = 3;
 
     // Temasekian Information
-    private String firstName = "";
-    private String matricNum = "";
-    private String blk = "";
+    private String firstName;
+    private String matricNum;
+    private String blk;
 
     // Telegram Information
     private long chatId;
     private String teleFirstName;
     private String teleLastName;
     private String teleUsername;
-    private long userId;
+    private Long userId;
 
     private int retryCounter;
 
-
+    private boolean verified = false;
     private boolean registered = false;
     private boolean matricDonated = false;
     private boolean updating = false;
@@ -27,6 +27,10 @@ public class Temasekian {
     private boolean submittingReason = false;
     private String reportedMatric = "";
     private String reportedReason = "";
+
+    private boolean contactAdmin = false;
+
+    private boolean givingFeedback = false;
 
     private String previousMatric = "";
     private String previousBlk = "";
@@ -39,10 +43,25 @@ public class Temasekian {
     private boolean admin = false;
 
     private boolean addingAdmins = false;
+    private boolean removingAdmins = false;
+
+    private boolean doingQC = false;
+    private boolean broadcast = false;
+    private boolean confirmBroadcast = false;
+
+    private boolean setPmId = false;
+    private boolean setPmMessage = false;
+    private Long pmTargetId;
+
+    private boolean replying = false;
+    private boolean changeTarget = false;
 
     private int mealCounter;
     private boolean isEating;
     private boolean isNotEating;
+
+    private Long donorId = null;
+    private String donorName = "";
 
 
     public Temasekian() {
@@ -58,6 +77,17 @@ public class Temasekian {
         //this.updating = false;
     }
 
+    public boolean isVerified() {
+
+        return this.verified;
+
+    }
+
+    public void verified() {
+
+        this.verified = true;
+
+    }
 
     public boolean isRegistered() {
 
@@ -80,6 +110,11 @@ public class Temasekian {
     public void donateMatric() {
 
         this.matricDonated = true;
+    }
+
+    public void resetDonation() {
+
+        this.matricDonated = false;
     }
 
     public boolean shareDinnerPic() {
@@ -147,31 +182,19 @@ public class Temasekian {
 
     public boolean isTemasekianNameRegistered() {
 
-        if (this.firstName.equals("")) {
-            return false;
-        }
-
-        return true;
+        return !this.firstName.equals("");
 
     }
 
     public boolean isTemasekianMatricRegistered() {
 
-        if (this.matricNum.equals("")) {
-            return false;
-        }
-
-        return true;
+        return !this.matricNum.equals("");
 
     }
 
     public boolean isTemasekianBlkRegistered() {
 
-        if (this.blk.equals("")) {
-            return false;
-        }
-
-        return true;
+        return !this.blk.equals("");
 
     }
 
@@ -337,6 +360,30 @@ public class Temasekian {
 
     }
 
+    public void setDonorId(Long id) {
+
+        this.donorId = id;
+
+    }
+
+    public Long getDonorId() {
+
+        return this.donorId;
+
+    }
+
+    public void setDonorName(String name) {
+
+        this.donorName = name;
+
+    }
+
+    public String getDonorName() {
+
+        return this.donorName;
+
+    }
+
 
     public boolean isUnbanningUser() {
 
@@ -426,7 +473,7 @@ public class Temasekian {
 
     }
 
-    public long getUserId() {
+    public Long getUserId() {
 
         return this.userId;
 
@@ -434,17 +481,220 @@ public class Temasekian {
 
     public Long getChatId() {
 
-        return this.getChatId();
+        return this.chatId;
 
     }
 
 
+    public boolean isRemovingAdmins() {
+
+        return this.removingAdmins;
+
+    }
+
+    public void removingAdmins() {
+
+        removingAdmins = true;
+
+    }
+
+    public void removedAdmins() {
+
+        removingAdmins = false;
+
+    }
+
+
+    public boolean isGivingFeedback() {
+
+        return this.givingFeedback;
+
+    }
+
+    public void givingFeedback() {
+
+        this.givingFeedback = true;
+
+    }
+
+    public void gaveFeedback() {
+
+        this.givingFeedback = false;
+
+    }
+
+    public boolean isDoingQC() {
+
+        return this.doingQC;
+
+    }
+
+    public void doingQC() {
+
+        this.doingQC = true;
+
+    }
+
+    public void doneQC() {
+
+        this.doingQC = false;
+
+    }
+
+    public boolean isBroadcasting() {
+
+        return this.broadcast;
+
+    }
+
+    public void broadcasting() {
+
+        this.broadcast = true;
+
+    }
+
+    public void broadcasted() {
+
+        this.broadcast = false;
+
+    }
+
+    public boolean hasConfirmedBroadcast() {
+
+        return this.confirmBroadcast;
+
+    }
+
+    public void confirmingBroadcast() {
+
+        this.confirmBroadcast = true;
+
+    }
+
+    public void confirmedBroadcast() {
+
+        this.confirmBroadcast = false;
+
+    }
+
+    public boolean isContactingAdmin() {
+
+        return this.contactAdmin;
+
+    }
+
+    public void contactingAdmin() {
+
+        this.contactAdmin = true;
+
+    }
+
+    public void contactedAdmin() {
+
+        this.contactAdmin = false;
+
+    }
+
+    public boolean isSettingPmId() {
+
+        return this.setPmId;
+
+    }
+
+    public void settingPmId() {
+
+        this.setPmId = true;
+
+    }
+
+    public void setPmId() {
+
+        this.setPmId = false;
+
+    }
+
+    public boolean isSettingPmMessage() {
+
+        return this.setPmMessage;
+
+    }
+
+    public void settingPmMessage() {
+
+        this.setPmMessage = true;
+
+    }
+
+    public void setPmMessage() {
+
+        this.setPmMessage = false;
+
+    }
+
+    public void setPmTargetId(Long id) {
+
+        this.pmTargetId = id;
+
+    }
+
+    public Long getPmTargetId() {
+
+        return this.pmTargetId;
+
+    }
+
+    public boolean isReplying() {
+
+        return this.replying;
+
+    }
+
+    public void replying() {
+
+        this.replying = true;
+
+    }
+
+    public void replied() {
+
+        this.replying = false;
+
+    }
+
+    public boolean isChangingTarget() {
+
+        return this.changeTarget;
+
+    }
+
+    public void changingTarget() {
+
+        this.changeTarget = true;
+
+    }
+
+    public void changedTarget() {
+
+        this.changeTarget = false;
+
+    }
+
+    @Override
     public String toString() {
         return this.firstName + " (" + this.matricNum + ") from Blk " + this.blk;
     }
 
+/*    @Override
+    public int compareTo(Temasekian other) {
 
+        if (!other.blk.equals(this.blk)) {
+            return this.firstName.compareToIgnoreCase(other.firstName);
+        } else {
+            return this.blk.compareToIgnoreCase(other.blk)
+        }
 
+    }
+*/
 
 
 
@@ -478,6 +728,18 @@ public class Temasekian {
         this.addingAdmins = false;
 
     }
+
+    public void resetMealCounter() {
+
+        this.mealCounter = MEAL_COUNTER;
+
+    }
+
+    public void resetRetryCounter() {
+
+        this.retryCounter = RETRY_COUNTER;
+    }
+
 }
 
 /*

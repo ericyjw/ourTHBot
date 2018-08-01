@@ -15,8 +15,19 @@ public final class MainClass {
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi();
         OurTHBot ourTHBot = new OurTHBot();
         try {
+
+            Calendar rightNow = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
+            Integer hour = rightNow.get(Calendar.HOUR_OF_DAY);
+            Integer min = rightNow.get(Calendar.MINUTE);
+
+            System.out.println("Hour - " + hour);
+            System.out.println("Min - " + min);
+
+
             telegramBotsApi.registerBot(ourTHBot);
             ourTHBot.uploadOurTHBot();
+
+
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
