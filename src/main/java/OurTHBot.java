@@ -175,61 +175,61 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     } else {
 
-        try {
+      try {
 
-          // Update User Telegram Information
-          obtainTelegramUserInformation(update);
-
-
-          // First time user
-          if (!temasekDataBase.containsKey(userId)) {
+        // Update User Telegram Information
+        obtainTelegramUserInformation(update);
 
 
-            // Log
-            systemLog("New user registering...");
+        // First time user
+        if (!temasekDataBase.containsKey(userId)) {
 
-            if (MAINTENANCE) {
-              String maintain = "MAINTENANCE MODE: ON";
-              displayMessage(maintain);
-            }
 
-            Temasekian temasekian = new Temasekian();
+          // Log
+          systemLog("New user registering...");
 
-            // Check if the update has a message and the message has text
-            if (update.hasMessage() && update.getMessage().hasText()) {
+          if (MAINTENANCE) {
+            String maintain = "MAINTENANCE MODE: ON";
+            displayMessage(maintain);
+          }
 
-              String input = update.getMessage().getText();
+          Temasekian temasekian = new Temasekian();
 
-              switch (input) {
-
-                case "/start":
-                  // 1st time registration
-                  verifyUser(temasekian);
-                  //startsRegistration(temasekian);
-                  break;
-
-                default:
-                  registrationError(temasekian);
-                  break;
-
-              }
-
-            } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
-
-              picRegistrationError(temasekian);
-
-            }
-
-            // Not First Time User
-          } else {
-
-            Temasekian temasekian = temasekDataBase.get(userId);
-
-            //updateTemasekianChatId(temasekian);
+          // Check if the update has a message and the message has text
+          if (update.hasMessage() && update.getMessage().hasText()) {
 
             String input = update.getMessage().getText();
 
-            if (update.hasMessage() && update.getMessage().hasText()) {
+            switch (input) {
+
+              case "/start":
+                // 1st time registration
+                verifyUser(temasekian);
+                //startsRegistration(temasekian);
+                break;
+
+              default:
+                registrationError(temasekian);
+                break;
+
+            }
+
+          } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
+
+            picRegistrationError(temasekian);
+
+          }
+
+          // Not First Time User
+        } else {
+
+          Temasekian temasekian = temasekDataBase.get(userId);
+
+          //updateTemasekianChatId(temasekian);
+
+          String input = update.getMessage().getText();
+
+          if (update.hasMessage() && update.getMessage().hasText()) {
 
            /* if (!input.equals("/start")) {
 
@@ -246,55 +246,43 @@ public class OurTHBot extends TelegramLongPollingBot {
             }
           */
 
-              if (!temasekian.isVerified()) {
+            if (!temasekian.isVerified()) {
 
-                verification(temasekian, input);
+              verification(temasekian, input);
 
-              } else if (!temasekian.isRegistered()) {
+            } else if (!temasekian.isRegistered()) {
 
-                registerInformation(input, temasekian);
+              registerInformation(input, temasekian);
 
-              } else if (temasekian.isAdminMode()) {
-                // Admin Mode
-                mastercontrol(input, temasekian);
+            } else if (temasekian.isAdminMode()) {
+              // Admin Mode
+              mastercontrol(input, temasekian);
 
-              } else {
-
-                if (SEMESTER) {
-                  // User Mode
-                  userControl(input, temasekian);
-                } else {
-
-                  String text = "Vacation Time! The bot will not be active until school starts!";
-                  displayMessage(text);
-
-                  // Log
-                  systemLog("Someone attempted to used the bot during vacation!");
-
-                }
-
-              }
-
-
-            } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
-
-              uploadDinnerPic(update, temasekian);
-
+            } else {
+              // User Mode
+              userControl(input, temasekian);
             }
+
+
+          } else if (update.hasMessage() && update.getMessage().hasPhoto()) {
+
+            uploadDinnerPic(update, temasekian);
 
           }
 
-        } catch (Exception e) {
-          String input = update.getMessage().getText();
-          String text = "Exception thrown... Please inform the admin about this issue!\n" +
-            "Input that causes the exception - " + input;
-          displayMessage(text);
-
-          // Log
-          systemLog("EXCEPTION: USER ENTERED INVALID COMMAND...");
-          System.out.println("Exception:");
-          System.out.println(e);
         }
+
+      } catch (Exception e) {
+        String input = update.getMessage().getText();
+        String text = "Exception thrown... Please inform the admin about this issue!\n" +
+          "Input that causes the exception - " + input;
+        displayMessage(text);
+
+        // Log
+        systemLog("EXCEPTION: USER ENTERED INVALID COMMAND...");
+        System.out.println("Exception:");
+        System.out.println(e);
+      }
 
     }
 
@@ -618,85 +606,86 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   private void mainBotFunctions(String input, Temasekian temasekian) {
 
-    switch (input) {
+    if (SEMESTER || input.equals("/mastercontrol")) {
+      switch (input) {
 
-      case "/start":
-        if (temasekian.isRegistered()) {
-          String text = "You have registered! Do not worry! If you want to update your particulars, you can use /help to get more information!";
-          displayMessage(text);
-        }
-        break;
+        case "/start":
+          if (temasekian.isRegistered()) {
+            String text = "You have registered! Do not worry! If you want to update your particulars, you can use /help to get more information!";
+            displayMessage(text);
+          }
+          break;
 
-      case "/help":
-        getHelp(temasekian);
-        break;
+        case "/help":
+          getHelp(temasekian);
+          break;
 
-      case "/eating":
-        iseating(temasekian);
-        break;
+        case "/eating":
+          iseating(temasekian);
+          break;
 
-      case "/noteating":
-        queueMatric(matricDataBase, temasekian);
-        break;
+        case "/noteating":
+          queueMatric(matricDataBase, temasekian);
+          break;
 
-      case "/whatsfordinner":
-        checkDinnerMenu(temasekian);
-        break;
+        case "/whatsfordinner":
+          checkDinnerMenu(temasekian);
+          break;
 
-      case "/numberpls":
-        dequeueMatric(temasekian, matricDataBase);
-        break;
+        case "/numberpls":
+          dequeueMatric(temasekian, matricDataBase);
+          break;
 
-      case "/thanks":
-        sayThanks(temasekian);
-        break;
+        case "/thanks":
+          sayThanks(temasekian);
+          break;
 
-      case "/report":
-        report(temasekian);
-        break;
+        case "/report":
+          report(temasekian);
+          break;
 
-      case "/feedback":
-        feedback(temasekian);
-        break;
+        case "/feedback":
+          feedback(temasekian);
+          break;
 
-      case "/contactus":
-        contactAdmin(temasekian);
-        break;
+        case "/contactus":
+          contactAdmin(temasekian);
+          break;
 
-      case "/reply":
-        reply(temasekian);
-        break;
+        case "/reply":
+          reply(temasekian);
+          break;
 
-      case "/dm":
-        setNewTarget(temasekian);
-        break;
+        case "/dm":
+          setNewTarget(temasekian);
+          break;
 
-      case "/updatename":
-        updateName(temasekian);
-        break;
+        case "/updatename":
+          updateName(temasekian);
+          break;
 
-      case "/updatematric":
-        updateMatric(temasekian);
-        break;
+        case "/updatematric":
+          updateMatric(temasekian);
+          break;
 
-      case "/updateblk":
-        updateBlk(temasekian);
-        break;
+        case "/updateblk":
+          updateBlk(temasekian);
+          break;
 
-      case "/hidden":
-        hiddenCmd(temasekian);
-        break;
+        case "/hidden":
+          hiddenCmd(temasekian);
+          break;
 
-      case "/mastercontrol":
-        adminControl(temasekian);
-        break;
+        case "/mastercontrol":
+          adminControl(temasekian);
+          break;
 
-      case "/viewfeedback":
-        viewFeedback(temasekian);
-        break;
+        case "/viewfeedback":
+          viewFeedback(temasekian);
+          break;
 
-      case "/get":
-        getInfo(temasekian);
+        case "/get":
+          getInfo(temasekian);
 
 
       /*
@@ -705,6 +694,16 @@ public class OurTHBot extends TelegramLongPollingBot {
         displayMessage(msg);
         break;
        */
+      }
+
+    } else {
+
+      String text = "Vacation Time! The bot will not be active until school starts!";
+      displayMessage(text);
+
+      // Log
+      systemLog("Someone attempted to used the bot during vacation!");
+
     }
 
   }
