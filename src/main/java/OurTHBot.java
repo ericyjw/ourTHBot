@@ -1,21 +1,23 @@
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.methods.send.SendPhoto;
-import org.telegram.telegrambots.api.objects.Chat;
-import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.PhotoSize;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.exceptions.TelegramApiException;
 
-import javax.print.DocFlavor;
+import java.io.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Pattern;
 
 
 public class OurTHBot extends TelegramLongPollingBot {
 
   private static boolean MAINTENANCE = false;
+  private static boolean ISFILEOPEN = false;
 
   private static boolean hasReset = false;
   private static boolean hasNotify = false;
@@ -24,19 +26,30 @@ public class OurTHBot extends TelegramLongPollingBot {
   private static int RESET_HOUR = 22;
   private static int RESET_MIN = 0;
   private static int NOTIFY_HOUR = 17;
-  private static int NOTIFY_MIN = 0;
+  private static int NOTIFY_MIN = 20;
+  private static double VER = 5.4;
+
+  // Version 5.4
+  // Unban User Fix
+
+
+  // Version 5.3
+  // Corrected write to txt
+  // Added TOTAL EATING in activity
+  // Fixed SATURDAY print log
 
 
   // DataBases that do not need to reset
-  private static HashMap<Long, Temasekian> temasekDataBase = new HashMap<>();
-  private static HashMap<String, Long> matricToUserId = new HashMap<>();
-  private static HashMap<Long, String> chatIdToTemasekianName = new HashMap<>(); // redundant
+  private static ConcurrentHashMap<Long, Temasekian> temasekDataBase = new ConcurrentHashMap<>();
+  private static ConcurrentHashMap<String, Long> matricToUserId = new ConcurrentHashMap<>();
+  //private static ConcurrentHashMap<Long, String> chatIdToTemasekianName = new HashMap<>(); // redundant
   private static Set<Long> chatIdList = new HashSet<>();
   private static Set<Long> bannedList = new HashSet<>();
-  private static List<String> reportedList = new ArrayList<>();
-  private static List<String> feedbackList = new ArrayList<>();
+  private static List<String> reportedList = new CopyOnWriteArrayList<>();
+  private static List<String> feedbackList = new CopyOnWriteArrayList<>();
   private static Set<Long> admins = new HashSet<>();
-  private static Set<Long> dev = new HashSet<>();
+  private static Set<Long> notificationList = new HashSet<>();
+  // private static Set<Long> dev = new HashSet<>();
 
   // private static HashMap<Long, String> contactMessage = new HashMap<>(); // need to clear it after convo
   private static Set<String> contactedList = new HashSet<>();
@@ -47,6 +60,9 @@ public class OurTHBot extends TelegramLongPollingBot {
   private static List<String> dinnerContributors = new ArrayList<>();
   private static String dinnerCaption = "";
   private static String broadcastMessage = "";
+  private static Integer totalNotEating = 0;
+  private static Integer totalUsed = 0;
+  private static Integer totalEating = 0;
 
 
   // BotUser Information
@@ -57,15 +73,24 @@ public class OurTHBot extends TelegramLongPollingBot {
   private Long chatId;
 
 
-  private static String UPDATE = "We have just upgraded ourselves!\n\n" +
-    "New Features:\n" +
-    "- Timer corrected\n" +
-    "- Admin able to delete inappropriate dinner pictures\n" +
-    "- Admin can broadcast message to its user\n" +
-    "- Added level of security to prevent non-user from using the bot\n" +
-    "- Admin get instant notification from feedback and report\n" +
-    "- Added ability to thank the person for extra matric\n" +
-    "- Added PM function";
+  private static String UPDATE = "OurTHBot is official!";
+
+
+  // To-do
+  // Write chat id, telegram name, name, matric, blk //
+  // Read and store it to hashmap //
+  // Read write admins
+  // Extra Temasekian field - telegram name //
+  // Concurrent databases
+  // Catch telegram exception(warning) - cant be done (solution: manual reset/notify OR reset the whole bot)
+  // Proof read English - matric number registration quote
+  // Toggle maintanence - update databases //
+  // Update name, matric , blk must update data base --- simple flag to prevent concurrent read write of file
+  // NEW - Saturday - no reset no notify //
+  // NEW - Inform ALL admin feature//
+  // Add/remove admin from admin txt
+  // Remove users from users txt
+  // Sort temasekian by blk then by name then by matric
 
 
   // DONE & TESTED
@@ -107,42 +132,605 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   // Check for synchronised updates across all data structures!
 
+  private void writeRecord(Temasekian temasekian, String filepath) {
+
+    // Log
+    systemLog("Writing to external txt file - " + filepath);
+
+    while (true) {
+
+      if (!ISFILEOPEN) {
+        ISFILEOPEN = true;
+
+        Long chatId = temasekian.getTemasekianChatId();
+        String username = temasekian.getTemasekianTeleUsername();
+        String firstName = temasekian.getTemasekianTeleFirstName();
+        String lastName = temasekian.getTemasekianTeleLastName();
+        String name = temasekian.getTemasekianName();
+        String matric = temasekian.getTemasekianMatric();
+        String block = temasekian.getTemasekianBlk();
+
+        try {
+          FileWriter fw = new FileWriter(filepath, true);
+          BufferedWriter bw = new BufferedWriter(fw);
+          PrintWriter pw = new PrintWriter(bw);
+
+          String newInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + name + "|" + matric + "|" + block + "|";
+
+          systemLog("Appending new Temasekian...");
+
+          pw.println(newInformation);
+
+          systemLog("Appended new Temasekian!\n" + newInformation);
+          pw.flush();
+          pw.close();
+
+
+        } catch (Exception e) {
+          e.printStackTrace();
+          System.out.println("Error while writing to the external txt file - " + filepath + "!");
+          System.out.println(e);
+
+          informAdmins("Error occurs while writing to the database - " + e);
+        }
+
+        ISFILEOPEN = false;
+        break;
+      }
+
+    }
+
+    // Log
+    systemLog("Wrote to external txt file - " + filepath);
+  }
+
+  public void readFromTxtDataBase() {
+
+    // Log
+    systemLog("Reading from external txt file...");
+
+    while (true) {
+
+      if (!ISFILEOPEN) {
+
+        ISFILEOPEN = true;
+
+        try {
+          // Scanner read = new Scanner(new File("ExternalDataBase.txt"));
+          // Scanner sc = new Scanner(new File("AdminDataBase.txt"));
+
+          BufferedReader br1 = new BufferedReader(new InputStreamReader(new FileInputStream("ExternalDataBase.txt")));
+          BufferedReader br2 = new BufferedReader(new InputStreamReader(new FileInputStream("AdminDataBase.txt")));
+          BufferedReader br3 = new BufferedReader(new InputStreamReader(new FileInputStream("BanList.txt")));
+
+
+          String line;
+
+
+          //read.useDelimiter(Pattern.quote("|"));
+          //sc.useDelimiter(Pattern.quote("|"));
+
+          String[] tokens;
+          String chatId;
+          String username;
+          String firstName;
+          String lastName;
+          String name;
+          String matric;
+          String blk;
+
+          while ((line = br1.readLine()) != null) {
+
+            tokens = line.split(Pattern.quote("|"));
+
+            chatId = tokens[0];
+            username = tokens[1];
+            firstName = tokens[2];
+            lastName = tokens[3];
+            name = tokens[4];
+            matric = tokens[5];
+            blk = tokens[6];
+
+                        /*
+                            System.out.println(line);
+                            System.out.println("Chatid - " + chatId);
+                            System.out.println(username);
+                            System.out.println(firstName);
+                            System.out.println(lastName);
+                            System.out.println(name);
+                            System.out.println("MATRIC - " + matric);
+                            System.out.println("BLK - " + blk);
+
+                        */
+
+            re_registerTemasekians(chatId, username, firstName, lastName, name, matric, blk);
+
+            // Debugging
+            System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+            System.out.println("=============");
+
+          }
+
+          // Log
+          systemLog("Databases reset... re-registering bot users...");
+
+/*
+                    while (read.hasNext()) {
+                        //System.out.println("Has next Line: " + read.hasNextLine());
+                        //System.out.println("Next line = " + read.nextLine());
+
+                        chatId = read.next();
+
+                        System.out.println("Chatid - " + chatId);
+
+                        username = read.next();
+                        System.out.println(username);
+
+                        firstName = read.next();
+                        System.out.println(firstName);
+
+                        lastName = read.next();
+                        System.out.println(lastName);
+
+                        name = read.next();
+                        System.out.println(name);
+
+                        matric = read.next();
+                        System.out.println("MATRIC - " + matric);
+
+                        blk = read.next();
+                        System.out.println("BLK - " + blk);
+
+                        read.nextLine();
+
+                        //System.out.println("Before chatid...");
+                        //chatId = chatId.replace("\n", "");
+                        //blk = blk.replace("\n", "");
+                        //System.out.println("After chatid...");
+
+                        //System.out.println("BLK - " + blk);
+
+                        //System.out.println("Before reregister...");
+                        re_registerTemasekians(chatId, username, firstName, lastName, name, matric, blk);
+                        //System.out.println("After reregister...");
+
+                        // Debug
+                        //System.out.println("DEBUG");
+                        System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+                        System.out.println("=============");
+                    }
+
+                    */
+
+          while ((line = br2.readLine()) != null) {
+
+            tokens = line.split(Pattern.quote("|"));
+
+            chatId = tokens[0];
+            username = tokens[1];
+            firstName = tokens[2];
+            lastName = tokens[3];
+            name = tokens[4];
+            matric = tokens[5];
+            blk = tokens[6];
+
+                        /*
+                            System.out.println(line);
+                            System.out.println("Chatid - " + chatId);
+                            System.out.println(username);
+                            System.out.println(firstName);
+                            System.out.println(lastName);
+                            System.out.println(name);
+                            System.out.println("MATRIC - " + matric);
+                            System.out.println("BLK - " + blk);
+
+                        */
+
+            re_registerAdmins(chatId);
+
+            // Debugging
+            System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+            System.out.println("=============");
+
+          }
+
+          // Log
+          systemLog("Databases reset... re-registered admins...");
+
+                    /*
+                        while (sc.hasNext()) {
+                            chatId = sc.next();
+                            username = sc.next();
+                            firstName = sc.next();
+                            lastName = sc.next();
+                            name = sc.next();
+                            matric = sc.next();
+                            blk = sc.next();
+
+                            chatId = chatId.replace("\n", "");
+
+                            re_registerAdmins(chatId);
+
+                            // Debug
+                            System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+                            System.out.println("=============");
+                        }
+
+                    */
+
+          while ((line = br3.readLine()) != null) {
+
+            tokens = line.split(Pattern.quote("|"));
+
+            chatId = tokens[0];
+            username = tokens[1];
+            firstName = tokens[2];
+            lastName = tokens[3];
+            name = tokens[4];
+            matric = tokens[5];
+            blk = tokens[6];
+
+                        /*
+                            System.out.println(line);
+                            System.out.println("Chatid - " + chatId);
+                            System.out.println(username);
+                            System.out.println(firstName);
+                            System.out.println(lastName);
+                            System.out.println(name);
+                            System.out.println("MATRIC - " + matric);
+                            System.out.println("BLK - " + blk);
+
+                        */
+
+            re_registerBanUser(chatId);
+
+            // Debugging
+            System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+            System.out.println("=============");
+
+          }
+
+          // Log
+          systemLog("Databases reset... re-registered banned users...");
+
+
+                    /*
+
+                        while (sc.hasNext()) {
+                            chatId = sc.next();
+                            username = sc.next();
+                            firstName = sc.next();
+                            lastName = sc.next();
+                            name = sc.next();
+                            matric = sc.next();
+                            blk = sc.next();
+
+                            chatId = chatId.replace("\n", "");
+
+                            re_registerBanUser(chatId);
+
+                            // Debug
+                            System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+                            System.out.println("=============");
+                        }
+
+                    */
+
+
+          // sc.close();
+          //read.close();
+
+        } catch (Exception e) {
+          e.printStackTrace();
+          systemLog("There is an error while reading the external text file!");
+          System.out.println(e);
+
+          informAdmins("Error occurs while reading from database - " + e);
+        }
+
+        ISFILEOPEN = false;
+        break;
+      }
+
+    }
+
+    // Log
+    systemLog("Read from external txt file...");
+
+  }
+
+  private void re_registerBanUser(String chatId) {
+
+    Long id = Long.parseLong(chatId);
+
+    bannedList.add(id);
+
+  }
+
+
+  private void re_registerAdmins(String chatId) {
+
+    Long id = Long.parseLong(chatId);
+
+    admins.add(id);
+
+  }
+
+  private void updateRecord(Temasekian temasekian, String filepath, String removeTerm, String newTerm) {
+
+    systemLog("Updating records to external txt file...");
+
+    while (true) {
+
+      if (!ISFILEOPEN) {
+        ISFILEOPEN = true;
+
+        String tempfile = "temp.txt";
+        File oldfile = new File(filepath);
+        File newfile = new File(tempfile);
+
+        BufferedReader br = null;
+        try {
+          br = new BufferedReader(new InputStreamReader(new FileInputStream(filepath)));
+        } catch (FileNotFoundException e) {
+          e.printStackTrace();
+        }
+        //BufferedReader newfile = new BufferedReader(new InputStreamReader(new FileInputStream(tempfile)));
+
+
+        String line;
+        String[] tokens;
+        String chatId;
+        String username;
+        String firstName;
+        String lastName;
+        String name;
+        String matric;
+        String blk;
+
+
+        try {
+
+          FileWriter fw = new FileWriter(tempfile, true);
+          BufferedWriter bw = new BufferedWriter(fw);
+          PrintWriter pw = new PrintWriter(bw);
+
+
+          //Scanner sc = new Scanner(oldfile);
+          //sc.useDelimiter(Pattern.quote("|"));
+
+          while ((line = br.readLine()) != null) {
+
+            tokens = line.split(Pattern.quote("|"));
+
+            chatId = tokens[0];
+            username = tokens[1];
+            firstName = tokens[2];
+            lastName = tokens[3];
+            name = tokens[4];
+            matric = tokens[5];
+            blk = tokens[6];
+
+/*
+                            System.out.println(line);
+                            System.out.println("Chatid - " + chatId);
+                            System.out.println(username);
+                            System.out.println(firstName);
+                            System.out.println(lastName);
+                            System.out.println(name);
+                            System.out.println("MATRIC - " + matric);
+                            System.out.println("BLK - " + blk);
+
+                        // Debugging
+                        System.out.println(chatId + " - " + username + " - " + firstName + " - " + lastName + " - " + name + " - " + matric + " - " + blk);
+                        System.out.println("=============");
+*/
+/*
+                    while (sc.hasNext()) {
+
+                        chatId = sc.next();
+                        username = sc.next();
+                        firstName = sc.next();
+                        lastName = sc.next();
+                        name = sc.next();
+                        matric = sc.next();
+                        blk = sc.next();
+*/
+            String oldInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + name + "|" + matric + "|" + blk + "|\n";
+            String newInformation;
+
+            if (name.equals(removeTerm)) {
+
+              newInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + newTerm + "|" + matric + "|" + blk + "|\n";
+              pw.print(newInformation);
+
+            } else if (matric.equals(removeTerm)) {
+
+              newInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + name + "|" + newTerm + "|" + blk + "|\n";
+              pw.print(newInformation);
+
+            } else if (blk.equals(removeTerm)) {
+
+              newInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + name + "|" + matric + "|" + newTerm + "|\n";
+              pw.print(newInformation);
+
+            } else {
+
+              pw.print(oldInformation);
+
+            }
+
+          }
+
+          // sc.close();
+          pw.flush();
+          pw.close();
+          oldfile.delete();
+          File dump = oldfile;
+          newfile.renameTo(dump);
+
+        } catch (Exception e) {
+          e.printStackTrace();
+          System.out.println("Error while updating name to the external txt file!");
+          System.out.println(e);
+
+          informAdmins("Error occurs while updating name to the database - " + e);
+        }
+
+        ISFILEOPEN = false;
+        break;
+
+      }
+    }
+
+    // Log
+    userLog(temasekian, "User has updated his particulars to the external txt file...");
+
+
+  }
+
+  private void deleteRecord(Temasekian temasekian, String filepath, String banId) {
+
+    systemLog("Delete records from external txt file...");
+
+    while (true) {
+
+      if (!ISFILEOPEN) {
+        ISFILEOPEN = true;
+
+        String tempfile = "temp.txt";
+        File oldfile = new File(filepath);
+        File newfile = new File(tempfile);
+
+        BufferedReader br = null;
+        try {
+          br = new BufferedReader(new InputStreamReader(new FileInputStream(filepath)));
+        } catch (FileNotFoundException e) {
+          e.printStackTrace();
+        }
+        String line;
+        String[] tokens;
+        String chatId;
+        String username;
+        String firstName;
+        String lastName;
+        String name;
+        String matric;
+        String blk;
+
+
+        try {
+
+          FileWriter fw = new FileWriter(tempfile, true);
+          BufferedWriter bw = new BufferedWriter(fw);
+          PrintWriter pw = new PrintWriter(bw);
+
+          //Scanner sc = new Scanner(oldfile);
+          //sc.useDelimiter(Pattern.quote("|"));
+
+          while ((line = br.readLine()) != null) {
+
+            tokens = line.split(Pattern.quote("|"));
+
+            chatId = tokens[0];
+            username = tokens[1];
+            firstName = tokens[2];
+            lastName = tokens[3];
+            name = tokens[4];
+            matric = tokens[5];
+            blk = tokens[6];
+/*
+                    while (sc.hasNext()) {
+
+                        chatId = sc.next();
+                        username = sc.next();
+                        firstName = sc.next();
+                        lastName = sc.next();
+                        name = sc.next();
+                        matric = sc.next();
+                        blk = sc.next();
+*/
+            String oldInformation = chatId + "|" + username + "|" + firstName + "|" + lastName + "|" + name + "|" + matric + "|" + blk + "|\n";
+
+            if (!banId.equals(chatId)) {
+
+              pw.print(oldInformation);
+
+            }
+
+
+          }
+
+          //sc.close();
+          pw.flush();
+          pw.close();
+          oldfile.delete();
+          File dump = oldfile;
+          newfile.renameTo(dump);
+
+        } catch (Exception e) {
+          e.printStackTrace();
+          System.out.println("Error while updating name to the external txt file!");
+          System.out.println(e);
+
+          informAdmins("Error occurs while updating name to the database - " + e);
+        }
+
+        ISFILEOPEN = false;
+        break;
+
+      }
+    }
+
+    // Log
+    userLog(temasekian, "User has updated his particulars to the external txt file...");
+
+
+  }
+
+  // Re-register the temasekian who is verified and registered(no verification and information update required after update)
+  private void re_registerTemasekians(String chatId, String username, String firstName, String lastName, String name, String matric, String blk) {
+
+    Long id = Long.parseLong(chatId);
+
+    Temasekian temasekian = new Temasekian(id, username, firstName, lastName, name, matric, blk);
+
+    temasekDataBase.put(id, temasekian);
+    chatIdList.add(id);
+    matricToUserId.put(matric, id);
+
+  }
+
+
   public void uploadOurTHBot() {
     // Log
     systemLog("ourTHBot uploaded...");
     systemLog("ourTHBot is online!!");
+    systemLog("Version " + VER);
+
+    readFromTxtDataBase();
+
 
     do {
-
       if (SEMESTER) {
 
         if (isTimeToReset() && !hasReset) {
 
+          informAdmins("Bot resetting...");
           systemLog("Reset Matric Queue & Dinner Pic List...");
+          informAdmins(" Total number of matric donated: " + totalNotEating +
+            "\nTotal number of extra food taken: " + totalUsed);
           reset();
+          informAdmins("Bot has reset ");
 
-          /*
-          SendMessage message = new SendMessage();
-          long id = 24027079;
-          message.setChatId(id)
-            .setText("Bot Reset");
-          tryExecute(message);
-          */
 
           hasReset = true;
 
         } else if (isTimeToNotify() && !hasNotify) {
 
-          systemLog("Daily notification to all bot users...");
+          informAdmins("Bot notifies...");
           alertUser();
-
-          /*
-          SendMessage message = new SendMessage();
-          long id = 24027079;
-          message.setChatId(id)
-            .setText("Bot Notify");
-          tryExecute(message);
-          */
+          systemLog("Daily notification to all bot users...");
 
           hasNotify = true;
 
@@ -151,7 +739,29 @@ public class OurTHBot extends TelegramLongPollingBot {
           hasReset = false;
           hasNotify = false;
 
+          if (matricDataBase.size() >= 2 && !notificationList.isEmpty()) {
+            SendMessage message = new SendMessage();
+            String text = "There are some extra matric numbers now! Do you want some more food? /numberpls";
+
+            for (Long i : notificationList) {
+              message.setChatId(i)
+                .setText(text);
+              tryExecute(message);
+
+            }
+
+
+            // Log
+            systemLog("Notified " + notificationList.size() + " people!");
+
+            notificationList.clear();
+
+            systemLog("Notification List clear!  Notification List size - " + notificationList.size());
+
+          }
+
         }
+
       }
 
     } while (true);
@@ -175,11 +785,10 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     } else {
 
+      // Update User Telegram Information
+      obtainTelegramUserInformation(update);
+
       try {
-
-        // Update User Telegram Information
-        obtainTelegramUserInformation(update);
-
 
         // First time user
         if (!temasekDataBase.containsKey(userId)) {
@@ -205,7 +814,6 @@ public class OurTHBot extends TelegramLongPollingBot {
               case "/start":
                 // 1st time registration
                 verifyUser(temasekian);
-                //startsRegistration(temasekian);
                 break;
 
               default:
@@ -225,26 +833,10 @@ public class OurTHBot extends TelegramLongPollingBot {
 
           Temasekian temasekian = temasekDataBase.get(userId);
 
-          //updateTemasekianChatId(temasekian);
-
           String input = update.getMessage().getText();
 
           if (update.hasMessage() && update.getMessage().hasText()) {
 
-           /* if (!input.equals("/start")) {
-
-              if(!temasekian.isVerified()) {
-
-                verification(temasekian, input);
-
-              } else {
-
-                // Registering Information: Name, Matric Number & Block
-                registerInformation(input, update, temasekian);
-
-              }
-            }
-          */
 
             if (!temasekian.isVerified()) {
 
@@ -273,16 +865,22 @@ public class OurTHBot extends TelegramLongPollingBot {
         }
 
       } catch (Exception e) {
+
         String input = update.getMessage().getText();
-        String text = "Exception thrown... Please inform the admin about this issue!\n" +
-          "Input that causes the exception - " + input;
+        String text = "Opps something weird happened! Please try again! If the problem persists, please /contactus";
         displayMessage(text);
 
+        informAdmins("Exception thrown by " + userId + " - " + userUsername + " (" + userFirstName + ", " + userLastName + " )");
+        informAdmins("Exception: " + e);
+        informAdmins("Input that causes the exception: " + input);
+
         // Log
-        systemLog("EXCEPTION: USER ENTERED INVALID COMMAND...");
-        System.out.println("Exception:");
-        System.out.println(e);
+        systemLog("EXCEPTION: USER ENTERED INVALID COMMAND...\n" +
+          "Exception: " + e +
+          "\nInput that causes the exception: " + input);
+
       }
+
 
     }
 
@@ -379,7 +977,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     text = "Please provide me with the necessary information to get things started!";
     displayMessage(text);
 
-    text = "What will you want to be addressed as? ";
+    text = "What do you want to be addressed as? ";
     displayMessage(text);
 
   }
@@ -395,9 +993,9 @@ public class OurTHBot extends TelegramLongPollingBot {
       temasekian.updateTemasekianTeleFirstName(userFirstName);
       temasekian.updateTemasekianTeleLastName(userLastName);
       temasekian.updateTemasekianTeleUsername(userUsername);
-      temasekian.updateTemasekianUserId(userId);
+      //temasekian.updateTemasekianUserId(userId);
       chatIdList.add(chatId);
-      chatIdToTemasekianName.put(chatId, temasekian.getTemasekianName());
+      // chatIdToTemasekianName.put(chatId, temasekian.getTemasekianName());
 
       text = "Ok " + name + "! So what's your matric number?";
       displayMessage(text);
@@ -425,8 +1023,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       temasekian.updateTemasekianMatric(matric);
       matricToUserId.put(matric, userId);
 
-      text = matric + " sounds like someone I will date! Lastly "
-        + temasekian.getTemasekianName() + ", which block you come from?";
+      text = matric + " sounds like someone I will date! Lastly , which block are you from? (A,B,C,D or E)";
       displayMessage(text);
 
       // Log
@@ -455,19 +1052,23 @@ public class OurTHBot extends TelegramLongPollingBot {
       temasekian.updateTemasekianBlk(blk);
       temasekian.registered();
 
-      if (temasekian.getUserId().equals(Long.parseLong("24027079"))) {
-        admins.add(temasekian.getUserId());
-        dev.add(temasekian.getUserId());
+      if (temasekian.getChatId().equals(Long.parseLong("24027079"))) {
+        admins.add(temasekian.getChatId());
+        //dev.add(temasekian.getUserId());
 
         System.out.println("Eric got added to admin...");
       }
 
-      text = "Welcome " + temasekian.getTemasekianName() + " ("
-        + temasekian.getTemasekianMatric() + "), from Block "
-        + temasekian.getTemasekianBlk() + ", aboard!";
+      String filepath = "ExternalDataBase.txt";
+      writeRecord(temasekian, filepath);
+
+
+      text = "Welcome aboard, " + temasekian.getTemasekianName() + " ("
+        + temasekian.getTemasekianMatric() + "), from "
+        + temasekian.getTemasekianBlk() + " Block!";
       displayMessage(text);
 
-      text = "Do not worry if you are clueless now. You can always /help and you can definitely find some answers!";
+      text = "Clueless? You can always type /help and you can definitely find some answers!";
       displayMessage(text);
 
       text = "If you are unsure, just press /help";
@@ -582,7 +1183,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   }
 
   private void pendingNotifications(Temasekian temasekian) {
-    Long id = temasekian.getUserId();
+    Long id = temasekian.getChatId();
     if (!temasekian.isAdminMode()) {
       for (Long i : admins) {
         if (id.equals(i)) {
@@ -636,6 +1237,14 @@ public class OurTHBot extends TelegramLongPollingBot {
           dequeueMatric(temasekian, matricDataBase);
           break;
 
+        case "/notifyme":
+          keepUserUpdated(temasekian);
+          break;
+
+        case "/returnmatric":
+          returnMatric(temasekian);
+          break;
+
         case "/thanks":
           sayThanks(temasekian);
           break;
@@ -686,6 +1295,19 @@ public class OurTHBot extends TelegramLongPollingBot {
 
         case "/get":
           getInfo(temasekian);
+          break;
+
+        case "/matricsize":
+          getMatricSize(temasekian);
+          break;
+
+        case "/activity":
+          botActivity(temasekian);
+          break;
+
+        case "/users":
+          userList(temasekian);
+          break;
 
 
       /*
@@ -708,19 +1330,79 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   }
 
+  private void botActivity(Temasekian temasekian) {
+
+    String text = "Total Eating: " + totalEating +
+      "\nTotal number of matric donated: " + totalNotEating +
+      "\nTotal number of extra food taken: " + totalUsed;
+
+    displayMessage(text);
+
+    // Log
+    userLog(temasekian, "User is viewing daily bot activity");
+  }
+
+  private void returnMatric(Temasekian temasekian) {
+
+    Temasekian donor = temasekian.getDonor();
+    temasekian.setDonor(null);
+    temasekian.setDonorId(null);
+    temasekian.setDonorName("");
+    matricDataBase.add(donor);
+    temasekian.incrMealCounter();
+    totalUsed--;
+
+    String text = "You have returned " + donor.getTemasekianName() + "'s matric number (" + donor.getTemasekianMatric() + ")!";
+    displayMessage(text);
+
+    // Log
+    userLog(temasekian, "User has returned a matric number!" +
+      "\nDonor: " + donor +
+      "\nDonor set to null, Donor Id set to null, Donor Name set to null..." +
+      "\n" + donor.getTemasekianMatric() + " has been returned!" +
+      "\nUser's meal counter increased by 1...");
+
+
+  }
+
+  private void getMatricSize(Temasekian temasekian) {
+
+    Integer size = matricDataBase.size();
+    String text = "There are " + size + " matric(s) in the system!";
+    displayMessage(text);
+
+    // Log
+    userLog(temasekian, "User is viewing the number of matric number in the system!\nNumber of matric in the system: " + size);
+  }
+
+  private void keepUserUpdated(Temasekian temasekian) {
+
+    temasekian.userWillBeNotified();
+    Long chatId = temasekian.getChatId();
+    notificationList.add(chatId);
+
+
+    String text = "You will be notified when there are extra matric numbers!";
+    displayMessage(text);
+
+    // Log
+    userLog(temasekian, "User opt to receive notification when there are new matric in the system!");
+
+  }
+
   private void getHelp(Temasekian temasekian) {
 
     String text =
       "Here are the common commands you can use: \n" +
         "/eating - You are consuming dinner today and do not wish to donate your matric number.\n" +
         "/noteating - You are feeling generous today and feel like helping out some hungry souls.\n" +
-        "/whatsfordinner - You are unsure and want to see what's for dinner tonight before deciding\n" +
+        "/whatsfordinner - You are unsure about to eat or not, and want to see what's for dinner first.\n" +
         "/numberpls - You are feeling extra hungry today and wish to have more food!\n\n" +
-        "/report - You found someone using non-TH resident's matric and wish to report him\n" +
+        "/report - You found someone using non-TH resident's matric and wish to report him.\n" +
         "/feedback - You found some issue with the bot and wish to give us some feedback!\n" +
         "/contactus - You want some immediate reply to your question!\n\n" +
-        "/updatename - Suddenly do not feel like being called " + temasekian.getTemasekianName() + " and wish to change your name.\n" +
-        "/updatematric - For somewhat reason your matric number chances, you can update to your new matric number.\n" +
+        "/updatename - If you do not want to be addressed as " + temasekian.getTemasekianName() + " anymore and wish to change your name.\n" +
+        "/updatematric - To change your matric number.\n" +
         "/updateblk - Change block but still one Temasek!";
     displayMessage(text);
 
@@ -734,7 +1416,9 @@ public class OurTHBot extends TelegramLongPollingBot {
     String text = "Hidden Commands:\n" +
       "/mastercontrol - To access Admin Mode\n" +
       "/viewfeedback - To view the feedback given\n" +
-      "/get - To obtain your user ID";
+      "/get - To obtain your user ID\n" +
+      "/matricsize - Number of donated matric\n" +
+      "/activity - Bot activity";
     displayMessage(text);
 
     // Log
@@ -754,13 +1438,16 @@ public class OurTHBot extends TelegramLongPollingBot {
       text = "So what's for dinner today? Upload a picture of today's dinner for others to see!";
       displayMessage(text);
 
+      temasekian.responded();
+      totalEating++;
+
       // Log
       userLog(temasekian, "User indicated that he/she is eating today's dinner!");
 
     } else {
 
       text = "You have donated your matric number and someone may have used it..." +
-        " Don't worry you can use /numberpls to get a number for your dinner!";
+        " Don't worry you can use /numberpls to get another number for your dinner!";
       displayMessage(text);
 
       // Log
@@ -824,12 +1511,39 @@ public class OurTHBot extends TelegramLongPollingBot {
 
       }
 
+      notifyUpload(temasekian);
+
     }
 
 
     // Log
     userLog(temasekian, temasekian.getTemasekianName() + " has shared what is for dinner tonight!" +
       "\nNumber of dinner pictures uploaded: " + photos.size());
+
+  }
+
+  private void notifyUpload(Temasekian temasekian) {
+
+    SendMessage message = new SendMessage();
+    String text;
+
+    for (Long i : chatIdList) {
+
+      Temasekian user = temasekDataBase.get(i);
+
+      if (!user.hasResponded()) {
+
+        text = temasekian.getTemasekianName() + " has just uploaded a dinner picture! Use /whatsfordinner to check out today's menu!";
+        message.setChatId(i)
+          .setText(text);
+        tryExecute(message);
+
+      }
+
+    }
+
+    // Log
+    systemLog("Notify ALL users who have not respond to the daily reminder!");
 
   }
 
@@ -840,13 +1554,12 @@ public class OurTHBot extends TelegramLongPollingBot {
     if (!temasekian.isMatricDonated()) {
 
       matricDataBase.add(temasekian);
-      //String matric = temasekian.getTemasekianMatric();
-
-      //matricDataBase.push(matric);
 
       temasekian.donateMatric();
+      temasekian.responded();
+      totalNotEating++;
 
-      text = "Not eating dinner today? Thanks for donating your instead, someone will definitely appreciate it!";
+      text = "Not eating dinner today? Thanks for donating your matric number, someone will definitely appreciate it!";
       displayMessage(text);
 
       // Log
@@ -863,6 +1576,7 @@ public class OurTHBot extends TelegramLongPollingBot {
         "Number of Matric in system: " + matricDataBase.size());
 
     }
+
 
   }
 
@@ -886,9 +1600,13 @@ public class OurTHBot extends TelegramLongPollingBot {
         Long donorId = matricToUserId.get(donorMatric);
         temasekian.setDonorId(donorId);
         temasekian.setDonorName(donorName);
+        temasekian.setDonor(donor);
+        totalUsed++;
 
-        //text = "If you see " + donorName + " from " + donorBlk + " blk around, remember to say thank you!";
         text = "Say /thanks to " + donorName + " from " + donorBlk + " blk!";
+        displayMessage(text);
+
+        text = "Accidentally took extra matric? /returnmatric so that the others can enjoy more food!";
         displayMessage(text);
 
         // Log
@@ -913,12 +1631,16 @@ public class OurTHBot extends TelegramLongPollingBot {
 
       text = "Sorry there is no more numbers.... Please wait for more people who are not eating to donate their numbers...";
       displayMessage(text);
+      text = "/notifyme when there are extra matric numbers available!";
+      displayMessage(text);
 
       // Log
       userLog(temasekian, "Number Pls - NO MORE NUMBER IN THE SYSTEM" +
         "\nNumber of Matric in system: " + matricDataBase.size());
 
     }
+
+    temasekian.userWillNotBeNotified();
 
   }
 
@@ -929,7 +1651,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     if (!temasekian.getDonorId().equals(null)) {
 
       Long donorId = temasekian.getDonorId();
-      String thankYouNote = "You have satisfied " + temasekian.getTemasekianName() + "'s crave for comm hall food! " +
+      String thankYouNote = "You have satisfied " + temasekian.getTemasekianName() + "'s craving for comm hall food! " +
         temasekian.getTemasekianName() + " thanked you!";
 
       SendMessage message = new SendMessage();
@@ -965,7 +1687,7 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     if (photos.isEmpty()) {
 
-      text = "No one has shared what's for dinner tonight... You can come back in awhile again to check if anyone has shared today's dinner menu!";
+      text = "No one has uploaded any picture of tonight's dinner... You may come back in awhile to check again!";
       displayMessage(text);
 
       // Log
@@ -1098,7 +1820,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   private void feedback(Temasekian temasekian) {
 
     temasekian.givingFeedback();
-    String text = "Thank you for taking your time to give us your valuable feedback! All your feedback will be reviewed and used to improve ourselves!";
+    String text = "Thanks for taking your time to give us valuable feedback! All feedback will be reviewed and used to improve the bot!";
     displayMessage(text);
 
     text = "Please enter your valuable feedback:";
@@ -1119,7 +1841,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       if (isValidInput(input)) {
         String feedback = input;
 
-        text = "Thank you for your feedback! Hope you will see an update in the near future!";
+        text = "Thank you for your feedback! Hopefully we can update the bot in the near future to suit your needs.!";
         displayMessage(text);
 
         temasekian.gaveFeedback();
@@ -1334,7 +2056,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   }
 
   private void getInfo(Temasekian temasekian) {
-    String text = "Your user ID: " + temasekian.getUserId();
+    String text = "Your user ID: " + temasekian.getChatId();
     displayMessage(text);
 
     // Log
@@ -1436,6 +2158,9 @@ public class OurTHBot extends TelegramLongPollingBot {
       text = "Ok now I shall call you " + name;
       displayMessage(text);
 
+      String previousName = temasekian.getPreviousName();
+      updateRecord(temasekian, "ExternalDataBase.txt", previousName, name);
+
       // Log
       userLog(temasekian, "Changed Temasekian Name to: " + temasekian.getTemasekianName());
 
@@ -1448,6 +2173,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       userLog(temasekian, "Invalid name to update to - " + name);
     }
   }
+
 
   private void updateTemasekianMatric(String input, Temasekian temasekian) {
 
@@ -1466,6 +2192,9 @@ public class OurTHBot extends TelegramLongPollingBot {
 
         text = "Ok got it!  " + matric;
         displayMessage(text);
+
+        String previousMatric = temasekian.getPreviousMatric();
+        updateRecord(temasekian, "ExternalDataBase.txt", previousMatric, matric);
 
         // Log
         userLog(temasekian, "User changing current matric number - " + prevMatric +
@@ -1510,6 +2239,9 @@ public class OurTHBot extends TelegramLongPollingBot {
         text = "Nice! Updated to Block " + blk;
         displayMessage(text);
 
+        String previousBlk = temasekian.getPreviousBlk();
+        updateRecord(temasekian, "ExternalDataBase.txt", previousBlk, blk);
+
         // Log
         userLog(temasekian, "Changed Temasekian Block to: " + temasekian.getTemasekianBlk());
 
@@ -1547,6 +2279,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       + " anymore? What will you like to be address as then?";
     displayMessage(text);
 
+    temasekian.updatePreviousName(temasekian.getTemasekianName());
     temasekian.updateTemasekianName("");
     temasekian.updating();
 
@@ -1671,7 +2404,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     displayMessage(text);
 
     // Log
-    adminLog(temasekian, "Attemping Admin Log In...");
+    adminLog(temasekian, "Attempting Admin Log In...");
 
   }
 
@@ -1685,6 +2418,9 @@ public class OurTHBot extends TelegramLongPollingBot {
         case "erome":
         case "thjcrc":
           text = "Welcome Admin " + temasekian.getTemasekianName() + "! What will you like to do?";
+          displayMessage(text);
+
+          text = "You can always press /adminhelp if you are clueless!";
           displayMessage(text);
 
           temasekian.adminPermissionGranted();
@@ -1835,6 +2571,14 @@ public class OurTHBot extends TelegramLongPollingBot {
         turnOnBot(temasekian);
         break;
 
+      case "/alertall":
+        alertUser();
+        break;
+
+      case "resetall":
+        reset();
+        break;
+
       default:
         invalidCommand(temasekian, input);
         break;
@@ -1882,7 +2626,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       "/pics - To do quality check on the dinner pictures\n" +
       "/getuserId - To get the user ID from the matric number\n" +
       "/pm - To respond to the users who contacted the admin\n" +
-      "/logout - To exit Admin mode and use the feature of ourTHBot\n";
+      "/logout - To exit Admin mode to use the feature of ourTHBot\n";
     displayMessage(text);
 
     // Log
@@ -1895,7 +2639,10 @@ public class OurTHBot extends TelegramLongPollingBot {
       "/users - List of bot users\n" +
       "/maintain - Go into Maintenance Mode\n" +
       "/off - Turn off the bot during vacation\n" +
-      "/on - Turn on the bot during school semester\n";
+      "/on - Turn on the bot during school semester\n" +
+      "/alertall - Notify all the bot users for their meal preference!" +
+      "/resetall - Reset all the bot users";
+
     displayMessage(text);
 
     // Log
@@ -1950,8 +2697,12 @@ public class OurTHBot extends TelegramLongPollingBot {
           Temasekian newAdmin = temasekDataBase.get(userId);
           temasekian.addedAdmins();
 
+          String filepath = "AdminDataBase.txt";
+          writeRecord(newAdmin, filepath);
+
           text = "You have added " + newAdmin;
           displayMessage(text);
+
 
           // Log
           adminLog(temasekian, "Admin has added a new admin - " + newAdmin +
@@ -1982,7 +2733,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       displayMessage(text);
 
       // Log
-      adminLog(temasekian, "EXCEPTION: Admin attempted to add new admin but keyed in an invalid user ID...");
+      adminLog(temasekian, "EXCEPTION: Admin attempted to add new admin but keyed in an invalid user ID - " + input);
 
     }
 
@@ -2014,6 +2765,9 @@ public class OurTHBot extends TelegramLongPollingBot {
         Temasekian removedAdmin = temasekDataBase.get(userId);
         temasekian.removedAdmins();
 
+        String filepath = "AdminDataBase.txt";
+        deleteRecord(temasekian, filepath, input);
+
         text = "You have removed " + removedAdmin + " as admin!";
         displayMessage(text);
 
@@ -2035,7 +2789,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       displayMessage(text);
 
       // Log
-      adminLog(temasekian, "EXCEPTION: Admin attempted to remove an admin but keyed in an invalid user ID ...");
+      adminLog(temasekian, "EXCEPTION: Admin attempted to remove an admin but keyed in an invalid user ID - " + input);
     }
   }
 
@@ -2061,6 +2815,13 @@ public class OurTHBot extends TelegramLongPollingBot {
         Temasekian bannedTemaksian = temasekDataBase.get(banId);
         bannedList.add(banId);
         temasekDataBase.remove(banId);
+
+        String filepath = "ExternalDataBase.txt";
+        deleteRecord(temasekian, filepath, input);
+
+        filepath = "BanList.txt";
+        writeRecord(bannedTemaksian, filepath);
+
 
         text = "User " + banId + " - " + bannedTemaksian + " has been banned...";
         displayMessage(text);
@@ -2089,7 +2850,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       displayMessage(text);
 
       // Log
-      adminLog(temasekian, "EXCEPTION: Admin attempts to ban a user but entered an invalid User ID...");
+      adminLog(temasekian, "EXCEPTION: Admin attempts to ban a user but entered an invalid User ID - " + input);
 
     }
   }
@@ -2112,12 +2873,15 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     String text;
 
-    if (isValidUserId(input)) {
+    // if (isValidUserId(input)) {
 
       Long bannedId = Long.parseLong(input);
 
       if (bannedList.contains(bannedId)) {
         bannedList.remove(bannedId);
+
+        String filepath = "BanList.txt";
+        deleteRecord(temasekian, filepath, input);
 
         text = "User " + bannedId + " - " + " has been removed from the ban...";
         displayMessage(text);
@@ -2138,7 +2902,7 @@ public class OurTHBot extends TelegramLongPollingBot {
         adminLog(temasekian, "Admin has attempted to remove ban on User " + bannedId + " but failed...");
 
       }
-    } else {
+   /* } else {
       text = "You have enter an invalid user id...";
       displayMessage(text);
 
@@ -2146,9 +2910,9 @@ public class OurTHBot extends TelegramLongPollingBot {
       displayMessage(text);
 
       // Log
-      adminLog(temasekian, "EXCEPTION: Admin attempts to remove the ban on a user but entered an invalid  user ID...");
+      adminLog(temasekian, "EXCEPTION: Admin attempts to remove the ban on a user but entered an invalid  user ID - " + input);
     }
-
+*/
   }
 
   private void viewReportedUser(Temasekian temasekian) {
@@ -2298,7 +3062,7 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   private void qualityCheck(Temasekian temasekian) {
 
-    String text = "There are the dinner photos: ";
+    String text = "There are the dinner photos uploaded!";
     displayMessage(text);
 
     SendPhoto photo = new SendPhoto();
@@ -2315,16 +3079,17 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     }
 
-    text = "To delete any photos, enter the index of the photo!";
+    text = "To delete any photo, enter the index of the photo!";
     displayMessage(text);
 
     text = "For example," +
       "\nTo delete the first picture, type 1" +
       "\nTo delete the second and fourth picture, type 2,4" +
-      "\nTo delete the first, second and third pic, type 1,2,3";
+      "\nTo delete the first, second and third pic, type 1,2,3" +
+      "\n[ASCENDING INPUT ONLY!]";
     displayMessage(text);
 
-    text = "If there is no inappropriate photos uploaded, /adminhome";
+    text = "If there are no inappropriate photos uploaded, return to /adminhome";
     displayMessage(text);
 
     temasekian.doingQC();
@@ -2343,7 +3108,8 @@ public class OurTHBot extends TelegramLongPollingBot {
       text = "This is not a valid format! Please follow the following format:" +
         "\nTo delete the first picture, type 1" +
         "\nTo delete the second and fourth picture, type 2,4" +
-        "\nTo delete the first, second and third pic, type 1,2,3";
+        "\nTo delete the first, second and third pic, type 1,2,3" +
+        "\nASCENDING INPUT ONLY!]";
       displayMessage(text);
 
       text = "If you wish to stop deleting selected few dinner photos, /adminhome";
@@ -2356,6 +3122,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     } else {
 
       int count = 0;
+      int compensate = 1;
 
       for (int i = 0; i < input.length(); i++) {
 
@@ -2365,11 +3132,20 @@ public class OurTHBot extends TelegramLongPollingBot {
 
           Integer num = Integer.parseInt(String.valueOf(c));
 
-          photos.remove(num - 1);
-          count++;
+          int index = num - compensate;
 
-          text = "Photo " + num + " has been delete!";
-          displayMessage(text);
+          if (index > photos.size() - 1) {
+            text = "Photo " + num + " does not exist!";
+            displayMessage(text);
+          } else {
+            photos.remove(index);
+            System.out.println("Remove photo index: " + index);
+            count++;
+            compensate++;
+
+            text = "Photo " + num + " has been delete!";
+            displayMessage(text);
+          }
 
         }
 
@@ -2399,7 +3175,7 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   private void logout(Temasekian temasekian) {
 
-    String text = "You have sucessfully logged out!";
+    String text = "You have logged out successfully!";
     displayMessage(text);
 
     temasekian.resetRetryCounter();
@@ -2460,7 +3236,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     displayMessage(text);
 
     // Log
-    adminLog(temasekian, "Admin views the size of the bot users...\nUsers: " + temasekDataBase.size());
+    adminLog(temasekian, "Admin views the size of the bot users...\nUsers: " + chatIdList.size());
 
   }
 
@@ -2473,7 +3249,7 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     }
 
-    list = list + "\n\nThere are a total of " + temasekDataBase.size() + " user(s)";
+    list = list + "\n\nThere are a total of " + chatIdList.size() + " user(s)";
     displayMessage(list);
 
     // Log
@@ -2483,15 +3259,27 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   private void maintenance() {
 
-    MAINTENANCE = true;
+    if (!MAINTENANCE) {
+      MAINTENANCE = true;
 
-    String text = "Bot went offline!";
-    displayMessage(text);
+      String text = "Bot went offline!";
+      displayMessage(text);
 
-    // Log
-    systemLog("ourTHBot is offline...");
+      // Log
+      systemLog("ourTHBot is offline...");
+    } else {
+      MAINTENANCE = false;
+
+      String text = "Bot is back online!";
+      displayMessage(text);
+
+      // Log
+      systemLog("ourTHBot is back online...");
+    }
+
 
   }
+
 
   private void viewContact(Temasekian temasekian) {
 
@@ -2559,7 +3347,7 @@ public class OurTHBot extends TelegramLongPollingBot {
         displayMessage(text);
 
         // Log
-        adminLog(temasekian, "Admin attempts to ban a user but entered an invalid user ID...");
+        adminLog(temasekian, "Admin attempts to ban a user but entered an invalid user ID - " + input);
       }
     } else {
 
@@ -2571,7 +3359,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       displayMessage(text);
 
       // Log
-      adminLog(temasekian, "EXCEPTION: Admin attempts to pm a user but entered an invalid User ID...");
+      adminLog(temasekian, "EXCEPTION: Admin attempts to pm a user but entered an invalid User ID - " + input);
 
     }
 
@@ -2624,6 +3412,14 @@ public class OurTHBot extends TelegramLongPollingBot {
     Calendar rightNow = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
     Integer hour = rightNow.get(Calendar.HOUR_OF_DAY);
     Integer min = rightNow.get(Calendar.MINUTE);
+    Integer dayOfWeek = rightNow.get(Calendar.DAY_OF_WEEK);
+
+    if (dayOfWeek == Calendar.SATURDAY) {
+      //systemLog("Saturday - no reset is required!");
+      return false;
+
+    }
+
 
 /*
     System.out.println("Hour - " + hour);
@@ -2640,6 +3436,13 @@ public class OurTHBot extends TelegramLongPollingBot {
     Calendar rightNow = Calendar.getInstance(TimeZone.getTimeZone("GMT+8"));
     Integer hour = rightNow.get(Calendar.HOUR_OF_DAY);
     Integer min = rightNow.get(Calendar.MINUTE);
+    Integer dayOfWeek = rightNow.get(Calendar.DAY_OF_WEEK);
+
+    if (dayOfWeek == Calendar.SATURDAY) {
+      systemLog("Saturday - no notifying is required!");
+      return false;
+
+    }
 
 /*
     System.out.println("Hour - " + hour);
@@ -2669,6 +3472,9 @@ public class OurTHBot extends TelegramLongPollingBot {
     photos.clear();
     dinnerContributors.clear();
     clearTemsekians();
+    totalNotEating = 0;
+    totalUsed = 0;
+    totalEating = 0;
 
   }
 
@@ -2678,9 +3484,12 @@ public class OurTHBot extends TelegramLongPollingBot {
 
     for (Long i : chatIdList) {
       Temasekian temasekian = temasekDataBase.get(i);
+      temasekian.didNotSharedDinnerPic();
       temasekian.resetDonation();
       temasekian.resetMealCounter();
       temasekian.resetRetryCounter();
+      temasekian.notResponded();
+      temasekian.userWillNotBeNotified();
       count++;
     }
 
@@ -2692,7 +3501,9 @@ public class OurTHBot extends TelegramLongPollingBot {
   private void alertUser() {
 
     for (Long i : chatIdList) {
-      String text = "Hello " + chatIdToTemasekianName.get(i) + ", will you be eating tonight?\n" +
+      String name = temasekDataBase.get(i).getTemasekianName();
+
+      String text = "Hello " + name + ", will you be eating tonight?\n" +
         "/eating - Yes! I love comm hall dinner!\n" +
         "/noteating - Neh... Not today...\n" +
         "/whatsfordinner - Not sure... I see the menu first?";
@@ -2707,6 +3518,8 @@ public class OurTHBot extends TelegramLongPollingBot {
         e.printStackTrace();
       }
     }
+
+    informAdmins("Notified ALL " + chatIdList.size() + " users...");
   }
 
 
@@ -2792,9 +3605,6 @@ public class OurTHBot extends TelegramLongPollingBot {
     for (int i = 0; i < input.length(); i++) {
 
       Character c = input.charAt(i);
-      System.out.println(c);
-      System.out.println(c.equals(','));
-      System.out.println(isValidInt(c));
 
       if (!c.equals(',') && !isValidInt(c)) {
 
@@ -2839,22 +3649,22 @@ public class OurTHBot extends TelegramLongPollingBot {
 
   }
 
-/*
-  //updateTHBot
-  public String getBotUsername() {
 
-      return "updateTHBot";
+  /*
+      //updateTHBot
+      public String getBotUsername() {
 
-  }
+          return "updateTHBot";
 
-  public String getBotToken() {
+      }
 
-      return "574618937:AAEaafM-63dZNRQmVfZeBbdTmK5G9DorNfo";
+      public String getBotToken() {
 
-  }
-*/
+          return "574618937:AAEaafM-63dZNRQmVfZeBbdTmK5G9DorNfo";
 
+      }
 
+  */
   private void displayMessage(String text) {
     SendMessage message = new SendMessage();
 
@@ -2868,6 +3678,18 @@ public class OurTHBot extends TelegramLongPollingBot {
       execute(message);
     } catch (TelegramApiException e) {
       e.printStackTrace();
+    }
+  }
+
+  private void informAdmins(String text) {
+    SendMessage message = new SendMessage();
+
+    if (!admins.isEmpty()) {
+      for (Long i : admins) {
+        message.setChatId(i)
+          .setText(text);
+        tryExecute(message);
+      }
     }
   }
 

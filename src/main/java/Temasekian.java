@@ -13,7 +13,7 @@ public class Temasekian {
     private String teleFirstName;
     private String teleLastName;
     private String teleUsername;
-    private Long userId;
+    // private Long userId;
 
     private int retryCounter;
 
@@ -22,6 +22,7 @@ public class Temasekian {
     private boolean matricDonated = false;
     private boolean updating = false;
     private boolean sharedDinnerPic = false;
+    private boolean keepUserNotified = false;
 
     private boolean reporting = false;
     private boolean submittingReason = false;
@@ -32,6 +33,7 @@ public class Temasekian {
 
     private boolean givingFeedback = false;
 
+    private String previousName = "";
     private String previousMatric = "";
     private String previousBlk = "";
 
@@ -57,11 +59,11 @@ public class Temasekian {
     private boolean changeTarget = false;
 
     private int mealCounter;
-    private boolean isEating;
-    private boolean isNotEating;
+    private boolean respond = false;
 
     private Long donorId = null;
     private String donorName = "";
+    private Temasekian donor = null;
 
 
     public Temasekian() {
@@ -72,9 +74,48 @@ public class Temasekian {
         this.retryCounter = RETRY_COUNTER;
         this.mealCounter = MEAL_COUNTER;
 
-        //this.registered = false;
-        //this.matricDonated = false;
-        //this.updating = false;
+    }
+
+    public Temasekian(Long chatId, String username, String firstName, String lastName, String name, String matric, String blk) {
+
+        this.chatId = chatId;
+        this.teleUsername = username;
+        this.teleFirstName = firstName;
+        this.teleLastName = lastName;
+        this.firstName = name;
+        this.matricNum = matric;
+        this.blk = blk;
+
+        this.retryCounter = RETRY_COUNTER;
+        this.mealCounter = MEAL_COUNTER;
+
+        this.verified = true;
+        this.registered = true;
+
+    }
+
+    public boolean hasResponded() {
+        return this.respond;
+    }
+
+    public void responded() {
+        this.respond = true;
+    }
+
+    public void notResponded() {
+        this.respond = false;
+    }
+
+    public boolean keepUserNotified() {
+        return this.keepUserNotified;
+    }
+
+    public void userWillBeNotified() {
+        this.keepUserNotified = true;
+    }
+
+    public void userWillNotBeNotified() {
+        this.keepUserNotified = false;
     }
 
     public boolean isVerified() {
@@ -129,6 +170,12 @@ public class Temasekian {
 
     }
 
+    public void didNotSharedDinnerPic() {
+
+        this.sharedDinnerPic = false;
+
+    }
+
 
     public void updateTemasekianName(String name) {
 
@@ -155,9 +202,21 @@ public class Temasekian {
 
     }
 
+    public String getTemasekianTeleFirstName() {
+
+        return this.teleFirstName;
+
+    }
+
     public void updateTemasekianTeleLastName(String lastName) {
 
         this.teleLastName = lastName;
+
+    }
+
+    public String getTemasekianTeleLastName() {
+
+        return this.teleLastName;
 
     }
 
@@ -167,17 +226,35 @@ public class Temasekian {
 
     }
 
+    public String getTemasekianTeleUsername() {
+
+        return this.teleUsername;
+
+    }
+
     public void updateTemasekianChatId(long chatId) {
 
         this.chatId = chatId;
 
     }
 
-    public void updateTemasekianUserId(long userId) {
+    public Long getTemasekianChatId() {
 
-        this.userId = userId;
+        return this.chatId;
 
     }
+
+    // public void updateTemasekianUserId(long userId) {
+
+    //     this.userId = userId;
+
+    // }
+
+    // public Long getTemasekianUserId() {
+
+    //    return this.userId;
+
+    // }
 
 
     public boolean isTemasekianNameRegistered() {
@@ -233,6 +310,18 @@ public class Temasekian {
     public void updated() {
 
         this.updating = false;
+
+    }
+
+    public void updatePreviousName(String name) {
+
+        this.previousName = name;
+
+    }
+
+    public String getPreviousName() {
+
+        return this.previousName;
 
     }
 
@@ -384,6 +473,17 @@ public class Temasekian {
 
     }
 
+    public void setDonor(Temasekian donor) {
+
+        this.donor = donor;
+
+    }
+
+    public Temasekian getDonor() {
+
+        return this.donor;
+    }
+
 
     public boolean isUnbanningUser() {
 
@@ -460,6 +560,11 @@ public class Temasekian {
 
     }
 
+    public void incrMealCounter() {
+
+        this.mealCounter++;
+    }
+
     public void decrMealCounter() {
 
         this.mealCounter--;
@@ -473,11 +578,11 @@ public class Temasekian {
 
     }
 
-    public Long getUserId() {
+    // public Long getUserId() {
 
-        return this.userId;
+    //    return this.userId;
 
-    }
+    // }
 
     public Long getChatId() {
 
@@ -698,19 +803,6 @@ public class Temasekian {
 
 
 
-    // Temasekian is eating
-    public void isEating() {
-        this.isEating = true;
-        this.isNotEating = false;
-    }
-
-    // Temasekian is not eating
-    public void isNotEating() {
-        this.isEating = false;
-        this.isNotEating = true;
-    }
-
-
     public boolean isAddingAdmins() {
 
         return this.addingAdmins;
@@ -739,6 +831,7 @@ public class Temasekian {
 
         this.retryCounter = RETRY_COUNTER;
     }
+
 
 }
 
