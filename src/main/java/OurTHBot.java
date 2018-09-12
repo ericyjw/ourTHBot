@@ -27,7 +27,15 @@ public class OurTHBot extends TelegramLongPollingBot {
   private static int RESET_MIN = 0;
   private static int NOTIFY_HOUR = 17;
   private static int NOTIFY_MIN = 20;
-  private static double VER = 5.4;
+  private static double VER = 5.6;
+
+  // Version 5.6
+  // Fixed banned user from re-registering after maintanence
+
+
+  // Version 5.5
+  // Fixed SATURDAY print long - notify
+  // Corrected total bot size
 
   // Version 5.4
   // Unban User Fix
@@ -36,7 +44,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   // Version 5.3
   // Corrected write to txt
   // Added TOTAL EATING in activity
-  // Fixed SATURDAY print log
+  // Fixed SATURDAY print log - reset
 
 
   // DataBases that do not need to reset
@@ -73,7 +81,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   private Long chatId;
 
 
-  private static String UPDATE = "OurTHBot is official!";
+  private static String UPDATE = "Sorry ourTHBot just went through some maintenance! Please register again to continue using!";
 
 
   // To-do
@@ -791,7 +799,7 @@ public class OurTHBot extends TelegramLongPollingBot {
       try {
 
         // First time user
-        if (!temasekDataBase.containsKey(userId)) {
+        if (!temasekDataBase.containsKey(userId) && bannedList.contain(userID)) {
 
 
           // Log
@@ -3197,7 +3205,9 @@ public class OurTHBot extends TelegramLongPollingBot {
       if (isValidMatric(matric)) {
 
         long userId = matricToUserId.get(matric);
-        text = "The user ID is: " + userId;
+        text = "The user ID is:";
+        displayMessage(text);
+        text = Long.toString(userId);
         displayMessage(text);
 
         temasekian.exchangedForUserId();
@@ -3232,7 +3242,7 @@ public class OurTHBot extends TelegramLongPollingBot {
   }
 
   private void botUserSize(Temasekian temasekian) {
-    String text = "There are " + temasekDataBase.size() + " user(s) now!";
+    String text = "There are " + chatIdList.size() + " user(s) now!";
     displayMessage(text);
 
     // Log
@@ -3439,7 +3449,7 @@ public class OurTHBot extends TelegramLongPollingBot {
     Integer dayOfWeek = rightNow.get(Calendar.DAY_OF_WEEK);
 
     if (dayOfWeek == Calendar.SATURDAY) {
-      systemLog("Saturday - no notifying is required!");
+      //systemLog("Saturday - no notifying is required!");
       return false;
 
     }
