@@ -3,6 +3,41 @@
 ourTHBot is a telegram bot that aims to improve the hall experience of the residents leaving in Temasek Hall.
 
 ========================================================================================
+Version - beta3.0 
+
+Date - 02/08/2018
+
+Fixed:
+  - Uploaded to DigitalOcean: Run for a few weeks
+  - Corrected Notification and Reset Time
+  - Dinner Caption
+  - Broadcast Message Header
+  - "Message sent" notification
+  - /home option after error in feedback mode
+  - "Invalid getuserId for not registered member
+  
+Working:
+  - Vacation Mode
+  - View Feedback
+  - Admin Controls
+    - Clear feedback
+    - Add more admins
+    - View admins
+    - Quality check on the dinner photos uploaded
+    - Instant notification to admin upon new reports & feedbacks
+    - Broadcast Message
+    - Size of bot users and users list
+  - User Controls
+    - Option to say thanks after obtaining extra matric number
+    - PM
+    - Contact us
+    
+Issue:
+    - Information of all Temasekians will be lost upon restarting the bot! -> mySQL
+
+========================================================================================
+
+========================================================================================
 
 Version - beta2.0 
 
