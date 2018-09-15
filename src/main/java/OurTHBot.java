@@ -29,24 +29,6 @@ public class OurTHBot extends TelegramLongPollingBot {
 	private static int NOTIFY_MIN = 20;
 	private static double VER = 5.6;
 
-	// Version 5.6
-	// Fixed banned user from re-registering after maintanence
-
-
-	// Version 5.5
-	// Fixed SATURDAY print long - notify
-	// Corrected total bot size
-
-	// Version 5.4
-	// Unban User Fix
-
-
-	// Version 5.3
-	// Corrected write to txt
-	// Added TOTAL EATING in activity
-	// Fixed SATURDAY print log - reset
-
-
 	// DataBases that do not need to reset
 	private static ConcurrentHashMap<Long, Temasekian> temasekDataBase = new ConcurrentHashMap<>();
 	private static ConcurrentHashMap<String, Long> matricToUserId = new ConcurrentHashMap<>();
